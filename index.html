@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Beer vs. Wine | The Debate Wheel</title>
+<style>
+:root{font-family:system-ui,-apple-system,'Segoe UI',Arial,sans-serif;color:#222d39;background:#f5f6f8}
+*{box-sizing:border-box}body{margin:0}main{max-width:1060px;margin:auto;text-align:center;padding:46px 20px 110px}h1{font-size:clamp(32px,5vw,56px);letter-spacing:-.04em;margin:0 0 5px} .sub{font-size:clamp(14px,2vw,19px);color:#66717b;margin:0 0 23px}
+.wheel-wrap{width:min(82vw,680px);height:min(82vw,680px);max-width:680px;max-height:680px;position:relative;margin:auto;aspect-ratio:1}canvas{display:block;width:100%;height:100%;border-radius:50%;filter:drop-shadow(0 5px 12px #20293827)}
+.pointer{position:absolute;z-index:4;top:-5px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:16px solid transparent;border-right:16px solid transparent;border-top:33px solid #bc2034;filter:drop-shadow(0 2px 2px #0005)}
+.spin{position:absolute;z-index:5;top:50%;left:50%;transform:translate(-50%,-50%);width:17%;height:17%;min-width:82px;min-height:82px;border-radius:50%;border:5px solid white;background:#c8283a;color:white;font-weight:850;font-size:clamp(18px,2vw,25px);box-shadow:0 3px 13px #0006;cursor:pointer}.spin:hover{background:#ad1e30}.spin:disabled{background:#8b9298;cursor:default}
+.selection{margin:22px auto 0;min-height:76px}.selection .small{font-size:14px;color:#697582;text-transform:uppercase;letter-spacing:.1em;font-weight:750}.selection .chosen{font-size:clamp(22px,3vw,34px);font-weight:800;color:#b81c33;margin-top:5px}
+.actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin:8px 0 0}.action{padding:10px 17px;font-weight:650;background:white;border:1px solid #ccd2d9;border-radius:9px;cursor:pointer;color:#263442}.action:hover{background:#eaedf1}details{margin:35px auto 0;max-width:550px;text-align:left;border-top:1px solid #d6dce3;padding-top:18px;color:#45515d}summary{cursor:pointer;font-weight:700;text-align:center}textarea{display:block;width:100%;height:240px;margin:15px 0 8px;font:15px/1.6 inherit;padding:12px;border:1px solid #bec7d1;border-radius:8px;resize:vertical;background:white} .hint{font-size:13px;color:#67717c;line-height:1.4;margin-top:9px}.footer{margin-top:28px;font-size:13px;color:#7d8790}
+@media(max-width:600px){main{padding-top:25px}.wheel-wrap{width:min(95vw,680px);height:auto} .spin{min-width:62px;min-height:62px;border-width:3px}.pointer{border-left-width:12px;border-right-width:12px;border-top-width:24px}}
+@media(prefers-reduced-motion:reduce){.spin{transition:none}}
+</style>
+</head>
+<body><main>
+<h1>BEER vs. WINE</h1><p class="sub">The Ultimate Debate Wheel</p>
+<div class="wheel-wrap"><canvas id="wheel" width="1200" height="1200" aria-label="Wheel showing debate categories"></canvas><div class="pointer" aria-hidden="true"></div><button class="spin" id="spin" type="button">SPIN</button></div>
+<div class="selection" aria-live="polite"><div class="small">Selected Category</div><div class="chosen" id="chosen">Ready to spin!</div></div>
+<div class="actions"><button class="action" id="reset" type="button">Reset All</button><button class="action" id="fullscreen" type="button">Full Screen</button></div>
+<details><summary>Edit Categories</summary><p class="hint">One category per line. Saving categories resets the selections.</p><textarea id="editor" spellcheck="false"></textarea><button class="action" id="save" type="button">Save Categories</button></details>
+<p class="footer">Selected slices turn red and cannot be chosen again. Progress is saved in this browser.</p>
+</main>
+<script>
+(()=>{'use strict';
+const defaults=['Best Taste Variety','Best With Food','Best Songs','Best Movies & TV','Best Social Drink','Best History','Best for the Planet','Best Value','Best Drinking Ritual','Best Packaging','Best for Aging','Best Health Claims','Best Image','Best for Sports','Best Overall Vibe'];
+const key='beer-vs-wine-wheel-v1';let state={labels:[...defaults],used:[],chosen:null};try{let s=JSON.parse(localStorage.getItem(key));if(s&&Array.isArray(s.labels)&&s.labels.length>=2){state.labels=s.labels.filter(x=>typeof x==='string');state.used=(s.used||[]).filter(i=>Number.isInteger(i)&&i>=0&&i<state.labels.length);state.chosen=Number.isInteger(s.chosen)&&s.chosen>=0&&s.chosen<state.labels.length?s.chosen:null}}catch(e){}
+const wheel=document.getElementById('wheel'),ctx=wheel.getContext('2d'),spin=document.getElementById('spin'),chosen=document.getElementById('chosen'),editor=document.getElementById('editor');let rotation=0,spinning=false;const W=1200,C=W/2,R=580;
+function save(){try{localStorage.setItem(key,JSON.stringify(state))}catch(e){}}
+function shade(i){const p=['#dee8ed','#d4dee7','#e7e4df','#d9e1dc','#e5e0e9'];return p[i%p.length]}
+function shortName(t){const aliases={'Best Taste Variety':'Taste Variety','Best With Food':'With Food','Best Movies & TV':'Movies & TV','Best Social Drink':'Social Drink','Best for the Planet':'For the Planet','Best Drinking Ritual':'Drinking Ritual','Best Health Claims':'Health Claims','Best for Sports':'For Sports','Best Overall Vibe':'Overall Vibe','Best for Aging':'For Aging'};return aliases[t]||t.replace(/^Best /,'')}
+function lines(text,n){const words=text.split(' '),res=[];let line='';const max=n>18?13:16;for(const w of words){if((line+' '+w).trim().length>max&&line){res.push(line);line=w}else line=(line+' '+w).trim()}if(line)res.push(line);return res.slice(0,3)}
+function draw(){ctx.clearRect(0,0,W,W);const n=state.labels.length,step=Math.PI*2/n;for(let i=0;i<n;i++){const mid=-Math.PI/2+step*(i+.5)+rotation,begin=mid-step/2,end=mid+step/2;ctx.beginPath();ctx.moveTo(C,C);ctx.arc(C,C,R,begin,end);ctx.closePath();ctx.fillStyle=state.used.includes(i)?'#d2384b':shade(i);ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='white';ctx.stroke();ctx.save();ctx.translate(C,C);ctx.rotate(mid);ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=state.used.includes(i)?'#fff':'#26313d';const words=shortName(state.labels[i]).split(' ');const fontsize=n>20?19:n>16?22:27;ctx.font=`700 ${fontsize}px system-ui,-apple-system,Segoe UI,Arial`;ctx.textAlign='left';let x=150;for(const word of words){const width=ctx.measureText(word).width;if(x+width>R-35){ctx.font=`700 ${Math.max(15,fontsize-4)}px system-ui,-apple-system,Segoe UI,Arial`;}ctx.fillText(word,x,0);x+=ctx.measureText(word).width+12}ctx.restore()}
+ctx.beginPath();ctx.arc(C,C,R,0,Math.PI*2);ctx.lineWidth=10;ctx.strokeStyle='#667685';ctx.stroke()}
+function update(){spin.disabled=spinning||state.used.length===state.labels.length;spin.textContent=state.used.length===state.labels.length?'DONE':'SPIN';chosen.textContent=state.chosen===null?'Ready to spin!':state.labels[state.chosen];editor.value=state.labels.join('\n');draw()}
+function ease(t){return 1-Math.pow(1-t,5)}
+function spinWheel(){if(spinning||state.used.length>=state.labels.length)return;const available=state.labels.map((_,i)=>i).filter(i=>!state.used.includes(i));const target=available[Math.floor(Math.random()*available.length)],step=Math.PI*2/state.labels.length;const normalized=((rotation%(2*Math.PI))+2*Math.PI)%(2*Math.PI),desired=(((2*Math.PI-step*(target+.5))%(2*Math.PI))+2*Math.PI)%(2*Math.PI);let delta=((desired-normalized+2*Math.PI)%(2*Math.PI))+2*Math.PI*(5+Math.floor(Math.random()*3));let start=rotation,end=rotation+delta,t0=null;spinning=true;spin.disabled=true;chosen.textContent='Spinning…';function tick(t){if(t0===null)t0=t;const progress=Math.min(1,(t-t0)/5100);rotation=start+(end-start)*ease(progress);draw();if(progress<1)requestAnimationFrame(tick);else{rotation=end%(2*Math.PI);state.used.push(target);state.chosen=target;spinning=false;save();update()}}requestAnimationFrame(tick)}
+spin.addEventListener('click',spinWheel);document.getElementById('reset').addEventListener('click',()=>{if(spinning)return;state.used=[];state.chosen=null;save();update()});document.getElementById('save').addEventListener('click',()=>{if(spinning)return;const names=editor.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).slice(0,30);if(names.length<2){alert('Please enter at least two categories.');return}state.labels=names;state.used=[];state.chosen=null;rotation=0;save();update();document.querySelector('details').open=false});document.getElementById('fullscreen').addEventListener('click',()=>{if(!document.fullscreenElement){document.documentElement.requestFullscreen?.()}else{document.exitFullscreen?.()}});update();
+})();
+</script></body></html>
